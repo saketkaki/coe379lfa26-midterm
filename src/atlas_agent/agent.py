@@ -44,7 +44,7 @@ def run_agent(
     for step in range(1, max_steps + 1):
         try:
             # TODO 2.1: Ask llm for one decision validated by DecisionAdapter.
-            raise NotImplementedError
+            decision = llm.generate(messages=messages, response_model=DecisionAdapter)
         except (ValidationError, ValueError, TypeError, RuntimeError) as exc:
             return _failed(
                 f"The model did not produce a valid decision: {exc}",
@@ -54,12 +54,16 @@ def run_agent(
 
         if isinstance(decision, ClarificationDecision):
             # TODO 2.2: Return clarification_required without calling a tool.
-            raise NotImplementedError
+            ans = AgentResponse(status="clarification_required", message=decision.question, citations=[], completed_actions=[])
+            return AgentRun(response=ans, trace=trace, termination_reason="clarification_required")
 
         if isinstance(decision, FinalDecision):
             # TODO 2.3: Validate the final response. Return a failed run if it is
             # inconsistent; otherwise return the model's final response.
-            raise NotImplementedError
+            any_issues = validate_final_response(decision.response, trace)
+            if any_issues:
+                return _failed(f"When validating the final response, we found it inconsistent with the trace: {any_issues}", trace, "invalid_final_response")
+            return AgentRun(response=decision.response, trace=trace, termination_reason="completed")
 
         if not isinstance(decision, ToolCallDecision):
             return _failed(
@@ -68,6 +72,11 @@ def run_agent(
 
         # TODO 2.4: Call validate_proposed_tool_call. If it returns errors,
         # create an action_gate_denied observation. Otherwise dispatch the tool.
+        any_issues = validate_proposed_tool_call(decision, request=request, trace=trace)
+        if any_issues:
+            obs_term = ToolObservation(ok=False, tool=decision.tool, data={}, error_code="action_gate_denied", message=f"Tool call validation failed because: {any_issues}")
+        else:
+            obs_term = environment.dispatch(decision.tool, decision.arguments)
         raise NotImplementedError
 
         # TODO 2.5: Create and append a TraceEvent. Set mutating by consulting
