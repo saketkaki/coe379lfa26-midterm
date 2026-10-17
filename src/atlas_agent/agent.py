@@ -54,8 +54,8 @@ def run_agent(
 
         if isinstance(decision, ClarificationDecision):
             # TODO 2.2: Return clarification_required without calling a tool.
-            ans = AgentResponse(status="clarification_required", message=decision.question, citations=[], completed_actions=[])
-            return AgentRun(response=ans, trace=trace, termination_reason="clarification_required")
+            response = AgentResponse(status="clarification_required", message=decision.question, citations=[], completed_actions=[])
+            return AgentRun(response=response, trace=trace, termination_reason="clarification_required")
 
         if isinstance(decision, FinalDecision):
             # TODO 2.3: Validate the final response. Return a failed run if it is
@@ -77,15 +77,16 @@ def run_agent(
             obs_term = ToolObservation(ok=False, tool=decision.tool, data={}, error_code="action_gate_denied", message=f"Tool call validation failed because: {any_issues}")
         else:
             obs_term = environment.dispatch(decision.tool, decision.arguments)
-        raise NotImplementedError
 
         # TODO 2.5: Create and append a TraceEvent. Set mutating by consulting
         # MUTATING_TOOLS rather than hard-coding one tool name.
-        raise NotImplementedError
+        trace_event = TraceEvent(step=step, decision=decision.model_dump(), observation=obs_term, mutating=decision.tool in MUTATING_TOOLS)
+        trace.append(trace_event)
 
         # TODO 2.6: Append the serialized decision as an assistant message and
         # the serialized observation as a tool message.
-        raise NotImplementedError
+        messages.append({"role": "assistant", "content": decision.model_dump_json()})
+        messages.append({"role": "tool", "content": obs_term.model_dump_json()})
 
     # TODO 2.7: Return an explicit maximum_steps_exceeded failure.
-    raise NotImplementedError
+    return _failed(f"This is the exceeded maximum number of steps: {max_steps}", trace, "maximum_steps_exceeded")
