@@ -7,24 +7,6 @@ from .models import AgentResponse, LabRequest, TraceEvent
 from .policy_context import ReservationContext, build_reservation_context
 from .tools import MUTATING_TOOLS
 
-# Request fields the model must copy exactly from the trusted request.
-BOUND_FIELDS = ("project_id", "resource_id", "start", "end")
-
-# Each ReservationContext fact, paired with the error to report when it is False.
-# Listed in the same order as the ReservationContext fields.
-PRECONDITION_ERRORS = (
-    ("arguments_complete", "reservation_arguments_incomplete"),
-    ("policy_retrieved", "policy_not_retrieved"),
-    ("authorizations_checked", "authorizations_not_checked"),
-    ("resource_status_checked", "resource_status_not_checked"),
-    ("project_authorized", "project_not_authorized"),
-    ("qualification_current", "required_qualification_missing"),
-    ("resource_available", "resource_not_available"),
-    ("calibration_current", "calibration_not_current"),
-    ("maintenance_clear", "maintenance_not_clear"),
-    ("after_hours_approval_satisfied", "after_hours_approval_missing"),
-)
-
 
 def validate_request_binding(
     decision: ToolCallDecision,
@@ -39,7 +21,8 @@ def validate_request_binding(
     if "user_id" in args and args["user_id"] != request.authenticated_user_id:
         errors.append("user_id_must_match_authenticated_user")
 
-    for field in BOUND_FIELDS:
+    # Project, resource, and times must match the trusted request exactly.
+    for field in ("project_id", "resource_id", "start", "end"):
         if field not in args:
             continue
         trusted_value = getattr(request, field)
@@ -56,11 +39,21 @@ def validate_request_binding(
 
 def validate_reservation_preconditions(context: ReservationContext) -> list[str]:
     """TODO 3.2: Return an error for every required context fact that is false."""
-    return [
-        error
-        for fact, error in PRECONDITION_ERRORS
-        if not getattr(context, fact)
+    # Each fact from policy_context, paired with the error to report when it
+    # is False. Kept in the same order as the ReservationContext fields.
+    checks = [
+        (context.arguments_complete, "reservation_arguments_incomplete"),
+        (context.policy_retrieved, "policy_not_retrieved"),
+        (context.authorizations_checked, "authorizations_not_checked"),
+        (context.resource_status_checked, "resource_status_not_checked"),
+        (context.project_authorized, "project_not_authorized"),
+        (context.qualification_current, "required_qualification_missing"),
+        (context.resource_available, "resource_not_available"),
+        (context.calibration_current, "calibration_not_current"),
+        (context.maintenance_clear, "maintenance_not_clear"),
+        (context.after_hours_approval_satisfied, "after_hours_approval_missing"),
     ]
+    return [error for fact_is_true, error in checks if not fact_is_true]
 
 
 def validate_proposed_tool_call(
