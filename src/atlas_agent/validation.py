@@ -115,5 +115,36 @@ def validate_final_response(
     response: AgentResponse, trace: list[TraceEvent]
 ) -> list[str]:
     """TODO 3.3: Validate citations, claimed actions, and final status."""
-    del response, trace
-    return []
+    # This is done while looking at the test cases in test_validation file
+    errors: list[str] = []
+
+    # Part 3a: Validate citations
+    for citation in response.citations:
+        if citation not in retrieved_passage_ids(trace):
+            # Using the error message from the test case in test_validation.py
+            errors.append("citations_not_retrieved")
+
+    # Part 3b: Validate completed actions
+    successful_mutations: list[str] = []
+    for event in trace:
+        if event.mutating and event.observation.ok:
+            successful_mutations.append(event.observation.tool)
+
+    for entry in response.completed_actions:
+        if entry not in successful_mutations:
+            # Using the error message from the test case in test_validation.py
+            errors.append("completed_action_not_in_successful_trace")
+
+    # Part 3c: Validate final status
+    if response.status == "completed":
+        if not successful_mutations:
+            errors.append("completed_without_successful_mutation")
+
+    # Part 3d: Validate incomplete status
+    if response.status != "completed":
+        if response.completed_actions:
+            errors.append("incomplete_with_completed_actions")
+        if successful_mutations:
+            errors.append("incomplete_with_successful_mutation")
+
+    return errors

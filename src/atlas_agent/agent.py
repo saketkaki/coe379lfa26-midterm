@@ -63,7 +63,7 @@ def run_agent(
             any_issues = validate_final_response(decision.response, trace)
             if any_issues:
                 return _failed(f"When validating the final response, we found it inconsistent with the trace: {any_issues}", trace, "invalid_final_response")
-            return AgentRun(response=decision.response, trace=trace, termination_reason="completed")
+            return AgentRun(response=decision.response, trace=trace, termination_reason="model_finished")
 
         if not isinstance(decision, ToolCallDecision):
             return _failed(
