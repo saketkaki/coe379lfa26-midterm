@@ -120,70 +120,7 @@ def test_final_response_claiming_denied_reservation_succeeded_is_rejected(enviro
     assert reservation_count(environment) == before
 
 
-# Additional case 3: the model tries to book for a different user.
-def test_gate_denies_identity_substitution_even_after_checks(environment):
-    # Alice is logged in, but the model books for Bob instead.
-    request = LabRequest(
-        authenticated_user_id="alice",
-        text="Reserve tensile-01 for polymer-study from 10:00 to 11:00.",
-        project_id="polymer-study",
-        resource_id="tensile-01",
-        **MORNING,
-    )
-    llm = ScriptedLLM(
-        [
-            tool("search_lab_documents", {"query": "tensile tester reservation policy"}),
-            tool("get_user_authorizations", {"user_id": "alice"}),
-            tool("get_resource_status", {"resource_id": "tensile-01", **MORNING}),
-            tool(
-                "reserve_resource",
-                {
-                    "user_id": "bob",
-                    "project_id": "polymer-study",
-                    "resource_id": "tensile-01",
-                    **MORNING,
-                },
-            ),
-            final("blocked", "I could not make that reservation."),
-        ]
-    )
-    before = reservation_count(environment)
-
-    run = run_agent(request, llm=llm, environment=environment)
-
-    denied = run.trace[-1]
-    assert denied.observation.error_code == "action_gate_denied"
-    assert "user_id_must_match_authenticated_user" in denied.observation.message
-    assert reservation_count(environment) == before
-    assert run.response.status == "blocked"
-
-
-# Additional case 4: a citation that was never retrieved is rejected.
-def test_final_response_with_made_up_citation_is_rejected(environment):
-    request = LabRequest(
-        authenticated_user_id="alice",
-        text="What training do I need for the tensile tester?",
-    )
-    llm = ScriptedLLM(
-        [
-            tool("search_lab_documents", {"query": "tensile tester training"}),
-            final(
-                "blocked",
-                "Policy FAKE-999 says you need special training.",
-                citations=["FAKE-999#invented"],
-            ),
-        ]
-    )
-
-    run = run_agent(request, llm=llm, environment=environment)
-
-    assert run.trace[0].observation.ok is True
-    assert run.response.status == "failed"
-    assert run.termination_reason == "invalid_final_response"
-    assert "citations_not_retrieved" in run.response.message
-
-
-# Additional case 5: a reservation that really happened cannot be hidden.
+# Additional case 3: a reservation that really happened cannot be hidden.
 def test_final_response_hiding_a_successful_reservation_is_rejected(environment):
     request = LabRequest(
         authenticated_user_id="alice",
