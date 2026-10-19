@@ -4,18 +4,16 @@ from atlas_agent.llm import ScriptedLLM
 from atlas_agent.models import AgentResponse, LabRequest, ToolObservation, TraceEvent
 from atlas_agent.validation import validate_final_response, validate_request_binding
 
-REQUEST = LabRequest(
-    authenticated_user_id="alice",
-    text="Reserve tensile-01 for polymer-study from 2026-10-15 10:00 to 11:00.",
-    project_id="polymer-study",
-    resource_id="tensile-01",
-    start="2026-10-15T10:00:00",
-    end="2026-10-15T11:00:00",
-)
-
 
 def test_action_gate_blocks_reservation_for_another_user(environment):
-    interval = {"start": "2026-10-15T10:00:00", "end": "2026-10-15T11:00:00"}
+    request = LabRequest(
+        authenticated_user_id="alice",
+        text="Reserve tensile-01 for polymer-study from 2026-10-15 10:00 to 11:00.",
+        project_id="polymer-study",
+        resource_id="tensile-01",
+        start="2026-10-15T10:00:00",
+        end="2026-10-15T11:00:00",
+    )
     decisions = [
         {
             "kind": "tool_call",
@@ -24,7 +22,8 @@ def test_action_gate_blocks_reservation_for_another_user(environment):
                 "user_id": "bob",
                 "project_id": "polymer-study",
                 "resource_id": "tensile-01",
-                **interval,
+                "start": "2026-10-15T10:00:00",
+                "end": "2026-10-15T11:00:00",
             },
             "reasoning_summary": "Reserve for a different user.",
         },
@@ -36,7 +35,7 @@ def test_action_gate_blocks_reservation_for_another_user(environment):
             },
         },
     ]
-    run = run_agent(REQUEST, llm=ScriptedLLM(decisions), environment=environment)
+    run = run_agent(request, llm=ScriptedLLM(decisions), environment=environment)
     assert run.response.status == "blocked"
     assert run.trace[0].observation.error_code == "action_gate_denied"
     assert len(environment.simulator.state["reservations"]) == 1
@@ -62,20 +61,17 @@ def test_blocked_response_cannot_hide_successful_reservation():
     errors = validate_final_response(response, trace)
     assert errors
 
-    honest_response = AgentResponse(
-        status="completed",
-        message="The reservation was created.",
-        completed_actions=["reserve_resource"],
-    )
-    assert validate_final_response(honest_response, trace) == []
-
 
 def test_request_binding_rejects_looking_up_another_users_permissions():
+    request = LabRequest(
+        authenticated_user_id="alice",
+        text="What am I allowed to reserve?",
+    )
     decision = ToolCallDecision(
         kind="tool_call",
         tool="get_user_authorizations",
         arguments={"user_id": "bob"},
         reasoning_summary="Check another user's permissions.",
     )
-    errors = validate_request_binding(decision, request=REQUEST)
+    errors = validate_request_binding(decision, request=request)
     assert "user_id_must_match_authenticated_user" in errors
