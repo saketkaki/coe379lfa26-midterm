@@ -61,7 +61,7 @@ def test_completed_claim_for_after_hours_booking_without_approval_is_rejected(
 ):
     request = LabRequest(
         authenticated_user_id="bob",
-        text="Reserve tensile-01 for polymer-study from 2026-10-15 10:00 to 11:00.",
+        text="Reserve tensile-01 for polymer-study from 2026-10-15 19:00 to 20:00.",
         project_id="polymer-study",
         resource_id="tensile-01",
         start="2026-10-15T19:00:00",
@@ -106,10 +106,10 @@ def test_reservation_without_qualification_is_rejected(environment):
         text="Reserve tensile-01 for robotics-demo from 2026-10-15 10:00 to 11:00.",
         project_id="robotics-demo",
         resource_id="tensile-01",
-        start="2026-10-15T19:00:00",
-        end="2026-10-15T20:00:00",
+        start="2026-10-15T10:00:00",
+        end="2026-10-15T11:00:00",
     )
-    interval = {"start": "2026-10-15T19:00:00", "end": "2026-10-15T20:00:00"}
+    interval = {"start": "2026-10-15T10:00:00", "end": "2026-10-15T11:00:00"}
     decisions = [
         tool("search_lab_documents", {"query": "tensile tester training"}),
         tool("get_user_authorizations", {"user_id": "carol"}),
