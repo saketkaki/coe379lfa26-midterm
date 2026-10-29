@@ -52,16 +52,16 @@ def validate_reservation_preconditions(context: ReservationContext) -> list[str]
     errors: list[str] = []
 
     if not context.arguments_complete:
-        errors.append("reservation_arguments_incomplete")
+        errors.append("reservation_arguments_missing")
 
     if not context.policy_retrieved:
         errors.append("reservation_policy_not_retrieved")
 
     if not context.authorizations_checked:
-        errors.append("reservation_authorizations_not_checked")
+        errors.append("reservation_authorizations_check_missing")
 
     if not context.resource_status_checked:
-        errors.append("reservation_resource_status_not_checked")
+        errors.append("reservation_resource_status_check_missing")
 
     if not context.project_authorized:
         errors.append("reservation_project_not_authorized")
@@ -79,7 +79,7 @@ def validate_reservation_preconditions(context: ReservationContext) -> list[str]
         errors.append("maintenance_not_clear")
 
     if not context.after_hours_approval_satisfied:
-        errors.append("after_hours_approval_not_satisfied")
+        errors.append("after_hours_approval_missing")
 
     return errors
 

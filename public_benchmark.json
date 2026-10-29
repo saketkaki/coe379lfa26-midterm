@@ -156,7 +156,7 @@
               "ok": true,
               "tool": "reserve_resource",
               "data": {
-                "reservation_id": "r-739b990839",
+                "reservation_id": "r-eb8be651e4",
                 "user_id": "alice",
                 "project_id": "polymer-study",
                 "resource_id": "tensile-01",
